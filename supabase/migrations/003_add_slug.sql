@@ -1,0 +1,2 @@
+ALTER TABLE games ADD COLUMN IF NOT EXISTS slug TEXT;
+CREATE INDEX IF NOT EXISTS idx_games_slug ON games(slug);

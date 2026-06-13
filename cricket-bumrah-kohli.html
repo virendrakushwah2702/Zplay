@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Virat vs Bumrah - ZPlay</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#fff;user-select:none;-webkit-user-select:none;touch-action:none}
+body{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-height:100vh;padding-top:8px}
+.zplay-brand{position:fixed;top:10px;right:14px;font-size:11px;letter-spacing:3px;color:rgba(255,255,255,0.3);font-weight:600;z-index:100;pointer-events:none}
+#wrap{position:relative;width:420px;height:680px;border-radius:16px;overflow:hidden;box-shadow:0 0 60px rgba(255,153,0,0.25),0 20px 60px rgba(0,0,0,0.6)}
+canvas{display:block;width:420px;height:680px;background:#87CEEB;touch-action:none}
+.bottom-bar{margin-top:14px;display:flex;gap:10px;z-index:10}
+.bottom-bar button{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;cursor:pointer;transition:all 0.2s ease;font-family:inherit}
+.bottom-bar button:hover{background:rgba(0,53,128,0.4);border-color:rgba(0,53,128,0.6)}
+.bottom-bar button:active{transform:scale(0.96)}
+@media (max-width:440px){#wrap{width:100vw;height:calc(100vw * 1.619);max-height:calc(100vh - 100px)}canvas{width:100%;height:100%}}
+</style>
+</head>
+<body>
+<div class="zplay-brand">ZPLAY</div>
+<div id="wrap"><canvas id="game" width="420" height="680"></canvas></div>
+<div class="bottom-bar">
+  <button id="shareBtn">Share 🔗</button>
+  <button id="likeBtn">❤️ Like</button>
+  <button id="remixBtn">Remix 🎨</button>
+</div>
+<script>
+(function(){
+'use strict';
+var canvas=document.getElementById('game');
+var ctx=canvas.getContext('2d');
+var W=420,H=680;
+
+function roundRect(x,y,w,h,r){if(typeof r==='number')r={tl:r,tr:r,br:r,bl:r};ctx.beginPath();ctx.moveTo(x+r.tl,y);ctx.lineTo(x+w-r.tr,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r.tr);ctx.lineTo(x+w,y+h-r.br);ctx.quadraticCurveTo(x+w,y+h,x+w-r.br,y+h);ctx.lineTo(x+r.bl,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r.bl);ctx.lineTo(x,y+r.tl);ctx.quadraticCurveTo(x,y,x+r.tl,y);ctx.closePath();}
+
+var audioCtx=null,noiseBuffer=null;
+function ensureAudio(){try{if(!audioCtx){audioCtx=new(window.AudioContext||window.webkitAudioContext)();var bs=audioCtx.sampleRate*0.5;noiseBuffer=audioCtx.createBuffer(1,bs,audioCtx.sampleRate);var d=noiseBuffer.getChannelData(0);for(var i=0;i<bs;i++)d[i]=Math.random()*2-1;}if(audioCtx.state==='suspended')audioCtx.resume();}catch(e){}}
+function playClick(){try{if(!audioCtx)return;var o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.value=1800;g.gain.setValueAtTime(0.2,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.05);o.connect(g).connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+0.06);}catch(e){}}
+function playCrowd(dur,vol){try{if(!audioCtx||!noiseBuffer)return;var s=audioCtx.createBufferSource(),g=audioCtx.createGain(),f=audioCtx.createBiquadFilter();s.buffer=noiseBuffer;f.type='bandpass';f.frequency.value=800;f.Q.value=0.5;g.gain.setValueAtTime(vol,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);s.connect(f).connect(g).connect(audioCtx.destination);s.start();s.stop(audioCtx.currentTime+dur);}catch(e){}}
+function playSix(){try{if(!audioCtx)return;[800,1000,1200,1600].forEach(function(f,i){var o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='triangle';o.frequency.value=f;var t=audioCtx.currentTime+i*0.06;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.18,t+0.02);g.gain.exponentialRampToValueAtTime(0.001,t+0.2);o.connect(g).connect(audioCtx.destination);o.start(t);o.stop(t+0.22);});playCrowd(1.2,0.3);}catch(e){}}
+function playFour(){playCrowd(0.7,0.22);}
+function playWicket(){try{if(!audioCtx)return;[600,500,400,300].forEach(function(f,i){var o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sawtooth';o.frequency.value=f;var t=audioCtx.currentTime+i*0.12;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.15,t+0.02);g.gain.exponentialRampToValueAtTime(0.001,t+0.25);o.connect(g).connect(audioCtx.destination);o.start(t);o.stop(t+0.3);});playCrowd(0.5,0.1);}catch(e){}}
+function playThump(){try{if(!audioCtx)return;var o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.value=50;g.gain.setValueAtTime(0.3,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.1);o.connect(g).connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+0.1);}catch(e){}}
+
+var PITCH_LEFT=160,PITCH_RIGHT=260,PITCH_TOP=160,PITCH_BOTTOM=560,PITCH_W=100;
+var BOWLER_X=210,BOWLER_Y_BASE=170,BATSMAN_X=210,BATSMAN_Y_BASE=540;
+var deliveries=['inswinger','outswinger','yorker','bouncer','slower'];
+var state={
+  mode:'title',
+  score:0,wickets:0,balls:0,best:0,
+  high:false,
+  ballInPlay:false,
+  deliveryType:'',
+  ballT:0,ballDur:70,
+  ballX:0,ballY:0,ballStartX:0,ballStartY:0,ballEndX:0,ballEndY:0,
+  bowlerAnim:0,bowlerRunUp:0,
+  batsmanShot:'',shotAnim:0,
+  outcome:'',outcomeT:0,outcomeRuns:0,
+  flash:'',flashT:0,
+  popups:[],
+  particles:[],
+  caughtFielderIdx:-1,
+  stumpParts:[],
+  history:[]
+};
+
+function newBall(){
+  state.ballInPlay=true;
+  state.deliveryType=deliveries[Math.floor(Math.random()*deliveries.length)];
+  state.ballT=0;
+  state.ballDur=60+Math.floor(Math.random()*15)-Math.min(15,state.balls*0.5);
+  state.ballStartX=BOWLER_X;state.ballStartY=BOWLER_Y_BASE+10;
+  state.ballEndX=BATSMAN_X;state.ballEndY=BATSMAN_Y_BASE-20;
+  state.ballX=state.ballStartX;state.ballY=state.ballStartY;
+  state.batsmanShot='';state.shotAnim=0;
+  state.outcome='';state.outcomeT=0;state.outcomeRuns=0;
+  state.flash=state.deliveryType.toUpperCase()+'!';state.flashT=40;
+  state.bowlerAnim=0;state.bowlerRunUp=0;
+  state.caughtFielderIdx=-1;
+  state.stumpParts=[];
+  playThump();
+}
+
+function drawSky(){
+  var g=ctx.createLinearGradient(0,0,0,200);
+  g.addColorStop(0,'#87CEEB');g.addColorStop(1,'#4FC3F7');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,200);
+  // stadium name
+  ctx.fillStyle='rgba(255,255,255,0.7)';
+  ctx.font='bold 13px sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('WANKHEDE STADIUM',W/2,18);
+  // sun
+  ctx.fillStyle='#FFEB3B';
+  ctx.shadowColor='#FFEB3B';ctx.shadowBlur=20;
+  ctx.beginPath();ctx.arc(60,40,18,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;
+}
+
+function drawCrowd(){
+  // dark silhouette band
+  ctx.fillStyle='#2c3e50';
+  ctx.fillRect(0,180,W,50);
+  // crowd heads
+  ctx.fillStyle='#34495e';
+  for(var i=0;i<W;i+=8){
+    var h=4+Math.sin(i*0.5+state.frame*0.05)*2;
+    ctx.beginPath();ctx.arc(i+4,210-h/2,h,0,Math.PI*2);ctx.fill();
+  }
+  // some color specs
+  for(var j=0;j<30;j++){
+    var x=(j*37+state.frame)%W;
+    var y=185+(j%3)*8;
+    ctx.fillStyle=['#e74c3c','#f39c12','#3498db'][j%3];
+    ctx.fillRect(x,y,2,3);
+  }
+}
+
+function drawOutfield(){
+  ctx.fillStyle='#2d8a1e';
+  ctx.beginPath();
+  ctx.ellipse(W/2,650,500,200,0,0,Math.PI*2);
+  ctx.fill();
+  // outfield ring
+  ctx.fillStyle='#1e6b14';
+  ctx.beginPath();
+  ctx.ellipse(W/2,650,520,220,0,0,Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle='#2d8a1e';
+  ctx.beginPath();
+  ctx.ellipse(W/2,650,500,200,0,0,Math.PI*2);
+  ctx.fill();
+}
+
+function drawPitch(){
+  ctx.fillStyle='#c8a96e';
+  ctx.fillRect(PITCH_LEFT,PITCH_TOP,PITCH_W,PITCH_BOTTOM-PITCH_TOP);
+  // pitch strip
+  ctx.fillStyle='#b89858';
+  for(var i=0;i<8;i++){
+    ctx.fillRect(PITCH_LEFT,PITCH_TOP+i*50,PITCH_W,2);
+  }
+  // creases
+  ctx.strokeStyle='#ffffff';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(PITCH_LEFT-5,PITCH_TOP);ctx.lineTo(PITCH_RIGHT+5,PITCH_TOP);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(PITCH_LEFT-5,PITCH_BOTTOM);ctx.lineTo(PITCH_RIGHT+5,PITCH_BOTTOM);ctx.stroke();
+  // stumps at batsman end
+  drawStumps(PITCH_LEFT+10,PITCH_BOTTOM,1,0);
+  drawStumps(PITCH_RIGHT-10,PITCH_BOTTOM,1,0);
+  // stumps at bowler end (smaller)
+  drawStumpsMini(PITCH_LEFT+10,PITCH_TOP);
+  drawStumpsMini(PITCH_RIGHT-10,PITCH_TOP);
+}
+
+function drawStumps(x,y,scale,fly){
+  if(fly===0){
+    ctx.fillStyle='#fff5e1';
+    for(var i=0;i<3;i++){
+      ctx.fillRect(x+i*4*scale,y,3*scale,28*scale);
+    }
+    // bail
+    ctx.fillRect(x-2*scale,y-3*scale,(14)*scale,2.5*scale);
+  } else {
+    for(var k=0;k<state.stumpParts.length;k++){
+      var p=state.stumpParts[k];
+      ctx.save();
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle='#fff5e1';
+      ctx.fillRect(-1.5,-14,3,28);
+      ctx.restore();
+    }
+  }
+}
+
+function drawStumpsMini(x,y){
+  ctx.fillStyle='#ddd';
+  for(var i=0;i<3;i++)ctx.fillRect(x+i*3,y,2,16);
+  ctx.fillRect(x-1,y-1,8,1.5);
+}
+
+var fielders=[
+  {name:'1st Slip',x:265,y:480},
+  {name:'2nd Slip',x:275,y:470},
+  {name:'3rd Slip',x:285,y:460},
+  {name:'Gully',x:310,y:445},
+  {name:'Point',x:340,y:380},
+  {name:'Mid-off',x:155,y:340},
+  {name:'Mid-on',x:265,y:340},
+  {name:'Fine Leg',x:115,y:430},
+  {name:'Third Man',x:305,y:430}
+];
+
+function drawFielders(){
+  for(var i=0;i<fielders.length;i++){
+    var f=fielders[i];
+    var caughtFlash=(state.caughtFielderIdx===i&&state.outcomeT>0);
+    ctx.save();
+    ctx.shadowColor=caughtFlash?'#ffeb3b':'#ef4444';
+    ctx.shadowBlur=caughtFlash?18:8;
+    ctx.fillStyle=caughtFlash?'#ffeb3b':'#ef4444';
+    ctx.beginPath();ctx.arc(f.x,f.y,8,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+    ctx.fillStyle='rgba(0,0,0,0.6)';
+    ctx.font='bold 9px sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText(f.name,f.x,f.y+20);
+  }
+}
+
+function drawBowler(){
+  var bx=BOWLER_X,by=BOWLER_Y_BASE-state.bowlerRunUp;
+  var armUp=Math.sin(state.frame*0.1)*0.3;
+  ctx.save();
+  ctx.translate(bx,by);
+  // head
+  ctx.fillStyle='#f4c490';
+  ctx.beginPath();ctx.arc(0,-32,8,0,Math.PI*2);ctx.fill();
+  // hair
+  ctx.fillStyle='#222';
+  ctx.beginPath();ctx.arc(0,-35,8,Math.PI,0);ctx.fill();
+  // shirt (yellow India)
+  ctx.fillStyle='#FFD700';
+  roundRect(-10,-25,20,22,3);ctx.fill();
+  // shirt number
+  ctx.fillStyle='#003580';
+  ctx.font='bold 8px sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('93',0,-12);
+  // pants (blue)
+  ctx.fillStyle='#003580';
+  roundRect(-9,-3,8,18,2);ctx.fill();
+  roundRect(1,-3,8,18,2);ctx.fill();
+  // arm raised (high-arm action)
+  ctx.strokeStyle='#FFD700';ctx.lineWidth=4;
+  ctx.beginPath();
+  ctx.moveTo(8,-22);
+  ctx.lineTo(16+armUp*4,-30+armUp*8);
+  ctx.stroke();
+  // other arm
+  ctx.beginPath();
+  ctx.moveTo(-8,-22);
+  ctx.lineTo(-12,-10);
+  ctx.stroke();
+  // legs
+  ctx.strokeStyle='#003580';ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(-5,15);ctx.lineTo(-7,28);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(5,15);ctx.lineTo(7,28);ctx.stroke();
+  ctx.restore();
+  // label
+  ctx.fillStyle='#FFD700';
+  ctx.font='bold 10px sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('BUMRAH',bx,by-44);
+}
+
+function drawBatsman(){
+  var bx=BATSMAN_X,by=BATSMAN_Y_BASE;
+  var batAng=state.shotAnim>0?(-1+state.shotAnim*0.05):0.3;
+  if(state.batsmanShot==='drive')batAng=1.2-state.shotAnim*0.04;
+  if(state.batsmanShot==='pull')batAng=-0.8+state.shotAnim*0.05;
+  if(state.batsmanShot==='defend')batAng=0.5;
+  ctx.save();
+  ctx.translate(bx,by);
+  ctx.fillStyle='#f4c490';
+  ctx.beginPath();ctx.arc(0,-30,8,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#003580';
+  ctx.beginPath();ctx.arc(0,-32,9,Math.PI,0);ctx.fill();
+  ctx.fillStyle='#001a40';ctx.fillRect(-5,-30,10,3);
+  ctx.fillStyle='#003580';
+  roundRect(-10,-22,20,20,3);ctx.fill();
+  ctx.fillStyle='#FFD700';ctx.font='bold 8px sans-serif';ctx.textAlign='center';
+  ctx.fillText('18',0,-10);
+  ctx.fillStyle='#ffffff';
+  roundRect(-9,-2,8,16,2);ctx.fill();
+  roundRect(1,-2,8,16,2);ctx.fill();
+  ctx.strokeStyle='#ffffff';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(-5,14);ctx.lineTo(-5,28);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(5,14);ctx.lineTo(5,28);ctx.stroke();
+  ctx.save();
+  ctx.translate(8,-15);ctx.rotate(batAng);
+  ctx.fillStyle='#5d3a1a';
+  roundRect(-1.5,-20,3,10,1);ctx.fill();
+  ctx.fillStyle='#e8c98a';
+  ctx.strokeStyle='#8a6a3a';ctx.lineWidth=1;
+  roundRect(-4,8,8,20,2);ctx.fill();ctx.stroke();
+  ctx.restore();ctx.restore();
+  ctx.fillStyle='#FFD700';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+  ctx.fillText('KOHLI',bx,by-44);
+}
+function drawBall(x,y){
+  ctx.save();ctx.shadowColor='#cc2200';ctx.shadowBlur=10;
+  ctx.fillStyle='#cc2200';
+  ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.strokeStyle='#fff5e1';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(x-6,y);ctx.lineTo(x+6,y);ctx.stroke();
+  ctx.strokeStyle='#fff';ctx.lineWidth=0.8;
+  for(var i=-5;i<=5;i+=2){ctx.beginPath();ctx.moveTo(x+i,y-0.5);ctx.lineTo(x+i,y+0.5);ctx.stroke();}
+  ctx.restore();
+}
+function drawShotButtons(){
+  var btnY=H-58,btnH=44;
+  var btns=[{label:'DRIVE \uD83C\uDFCF',x:14},{label:'PULL \uD83D\uDCAA',x:150},{label:'DEFEND \uD83D\uDEE1\uFE0F',x:286}];
+  for(var i=0;i<btns.length;i++){
+    var b=btns[i],bw=120;
+    var g=ctx.createLinearGradient(b.x,btnY,b.x,btnY+btnH);
+    g.addColorStop(0,'#0a4a9e');g.addColorStop(1,'#003580');
+    ctx.save();
+    ctx.fillStyle=g;ctx.shadowColor='rgba(0,53,128,0.6)';ctx.shadowBlur=8;
+    roundRect(b.x,btnY,bw,btnH,10);ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.strokeStyle='#FFD700';ctx.lineWidth=1.5;
+    roundRect(b.x,btnY,bw,btnH,10);ctx.stroke();
+    ctx.fillStyle='#ffffff';ctx.font='bold 13px sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(b.label,b.x+bw/2,btnY+btnH/2);
+    ctx.restore();
+  }
+}
+function drawHUD(){
+  ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,W,42);
+  ctx.fillStyle='#ffffff';ctx.font='bold 11px sans-serif';
+  ctx.textAlign='left';ctx.textBaseline='alphabetic';
+  ctx.fillText('SCORE',10,16);
+  ctx.font='bold 16px sans-serif';
+  var over=Math.floor(state.balls/6),bi=state.balls%6;
+  ctx.fillText(state.score+'/'+state.wickets+' ('+over+'.'+bi+')',10,36);
+  ctx.fillStyle='#FFD700';ctx.font='bold 13px sans-serif';ctx.textAlign='center';
+  ctx.fillText('INDIA \uD83C\uDDEE\uD83C\uDDF3 vs 287',W/2,18);
+  ctx.fillStyle='rgba(255,255,255,0.7)';ctx.font='11px sans-serif';
+  ctx.fillText('NEED '+Math.max(0,287-state.score)+' TO WIN',W/2,36);
+  ctx.textAlign='right';ctx.fillStyle='#FFD700';ctx.font='bold 11px sans-serif';
+  ctx.fillText('BUMRAH',W-10,16);
+  ctx.fillStyle='#ffffff';ctx.font='bold 14px sans-serif';
+  ctx.fillText(over+'-0-'+state.score+'-'+state.wickets,W-10,36);
+  ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,42,W,22);
+  var hx=W/2-(state.history.length*13)/2;
+  for(var i=0;i<state.history.length;i++){
+    var it=state.history[i];
+    ctx.fillStyle=it==='W'?'#ef4444':(it==='4'?'#22c55e':(it==='6'?'#FFD700':(it==='0'?'rgba(255,255,255,0.5)':'#ffffff')));
+    ctx.font='bold 12px sans-serif';ctx.textAlign='center';
+    ctx.fillText(it,hx+i*13+6,57);
+  }
+  var ls='';for(var l=0;l<3;l++){ls+=l<3-state.wickets?'\uD83C\uDFCF':'\u26AB';}
+  ctx.font='14px sans-serif';ctx.textAlign='left';
+  ctx.fillText(ls,8,57);
+}
+function drawFlash(){
+  if(state.flashT<=0)return;
+  var al=Math.min(1,state.flashT/15);
+  ctx.save();ctx.globalAlpha=al;
+  ctx.fillStyle='#FFEB3B';ctx.shadowColor='#FFEB3B';ctx.shadowBlur=16;
+  ctx.font='bold 22px sans-serif';ctx.textAlign='center';
+  ctx.fillText(state.flash,W/2,90);
+  ctx.restore();
+}
+function drawOutcomeBanner(){
+  if(state.outcomeT<=0)return;
+  var al=Math.min(1,state.outcomeT/30);
+  ctx.save();ctx.globalAlpha=al;
+  var t=state.outcome;
+  var c='#ffffff';
+  if(t==='FOUR!')c='#22c55e';
+  else if(t==='SIX!')c='#FFD700';
+  else if(t==='OUT!'||t==='BOWLED!'||t==='CAUGHT!'||t==='LBW!')c='#ef4444';
+  ctx.fillStyle=c;ctx.shadowColor=c;ctx.shadowBlur=20;
+  ctx.font='bold 32px sans-serif';ctx.textAlign='center';
+  ctx.fillText(t,W/2,H/2-30);ctx.restore();
+}
+function drawTitleScreen(){
+  ctx.save();ctx.fillStyle='rgba(10,10,30,0.75)';ctx.fillRect(0,0,W,H);
+  var bw=340,bh=400,bx=(W-bw)/2,by=(H-bh)/2-20;
+  ctx.strokeStyle='#FF9933';ctx.lineWidth=4;
+  roundRect(bx-2,by-2,bw+4,bh+4,18);ctx.stroke();
+  ctx.strokeStyle='#138808';ctx.lineWidth=4;
+  roundRect(bx+2,by+2,bw-4,bh-4,18);ctx.stroke();
+  ctx.fillStyle='rgba(20,15,40,0.95)';
+  roundRect(bx,by,bw,bh,16);ctx.fill();
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='#FFD700';ctx.shadowColor='#FF9933';ctx.shadowBlur=14;
+  ctx.font='bold 28px sans-serif';
+  ctx.fillText('\uD83C\uDFCF VIRAT vs BUMRAH',W/2,by+50);
+  ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(255,255,255,0.8)';ctx.font='13px sans-serif';
+  ctx.fillText('Wankhede Stadium \u2022 Day Match',W/2,by+80);
+  ctx.fillText('Survive Bumrah\'s spell!',W/2,by+100);
+  var sw=160,sh=44,sx=(W-sw)/2,sy=by+bh-70;
+  var sg=ctx.createLinearGradient(sx,sy,sx,sy+sh);
+  sg.addColorStop(0,'#0a4a9e');sg.addColorStop(1,'#003580');
+  ctx.fillStyle=sg;ctx.shadowColor='#003580';ctx.shadowBlur=14;
+  roundRect(sx,sy,sw,sh,22);ctx.fill();ctx.shadowBlur=0;
+  ctx.fillStyle='#ffffff';ctx.font='bold 15px sans-serif';
+  ctx.fillText('TAP TO START',W/2,sy+sh/2+1);
+  ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='11px sans-serif';
+  ctx.fillText('Best: '+state.best,W/2,by+bh-20);
+  ctx.restore();
+}
+function drawGameOverScreen(){
+  ctx.save();ctx.fillStyle='rgba(10,5,5,0.85)';ctx.fillRect(0,0,W,H);
+  var bw=320,bh=360,bx=(W-bw)/2,by=(H-bh)/2-20;
+  ctx.fillStyle='rgba(15,10,20,0.95)';ctx.strokeStyle='#ef4444';ctx.lineWidth=2;
+  ctx.shadowColor='#ef4444';ctx.shadowBlur=20;
+  roundRect(bx,by,bw,bh,18);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='#ffffff';ctx.font='bold 26px sans-serif';
+  ctx.fillText('INNINGS OVER! \uD83C\uDFCF',W/2,by+50);
+  ctx.fillStyle='#FFD700';ctx.shadowColor='#FFD700';ctx.shadowBlur=14;
+  ctx.font='bold 56px sans-serif';ctx.fillText(state.score,W/2,by+120);
+  ctx.shadowBlur=0;ctx.fillStyle='rgba(255,255,255,0.6)';ctx.font='12px sans-serif';
+  ctx.fillText('RUNS  |  '+state.wickets+' WICKETS',W/2,by+150);
+  ctx.fillStyle='#ffffff';ctx.font='13px sans-serif';
+  ctx.fillText('Bumrah: '+Math.floor(state.balls/6)+' overs, '+state.wickets+' wickets, '+state.score+' runs',W/2,by+185);
+  if(state.high){ctx.fillStyle='#FFD700';ctx.shadowColor='#FFD700';ctx.shadowBlur=14;ctx.font='bold 18px sans-serif';ctx.fillText('NEW HIGH SCORE! \uD83C\uDFC6',W/2,by+220);ctx.shadowBlur=0;}
+  ctx.fillStyle='#FF9933';ctx.font='bold 16px sans-serif';
+  ctx.fillText('Jai Hind! \uD83C\uDDEE\uD83C\uDDF3',W/2,by+250);
+  var sw=160,sh=44,sx=(W-sw)/2,sy=by+bh-60;
+  var sg=ctx.createLinearGradient(sx,sy,sx,sy+sh);
+  sg.addColorStop(0,'#0a4a9e');sg.addColorStop(1,'#003580');
+  ctx.fillStyle=sg;ctx.shadowColor='#003580';ctx.shadowBlur=14;
+  roundRect(sx,sy,sw,sh,22);ctx.fill();ctx.shadowBlur=0;
+  ctx.fillStyle='#ffffff';ctx.font='bold 14px sans-serif';
+  ctx.fillText('BAT AGAIN',W/2,sy+sh/2+1);
+  ctx.restore();
+}
+function getBallPos(){
+  var t=state.ballT/state.ballDur;
+  var x=state.ballStartX+(state.ballEndX-state.ballStartX)*t;
+  var y=state.ballStartY+(state.ballEndY-state.ballStartY)*t;
+  var d=state.deliveryType;
+  if(d==='yorker'){y=Math.min(y,BATSMAN_Y_BASE-5);}
+  else if(d==='bouncer'){var m=t<0.5?t*2:1;y=state.ballStartY+(state.ballEndY-state.ballStartY)*m;if(t>0.5)y-=40*(t-0.5);}
+  else if(d==='inswinger'){x+=Math.sin(t*Math.PI)*-25;}
+  else if(d==='outswinger'){x+=Math.sin(t*Math.PI)*25;}
+  else if(d==='slower'){if(t>0.6)y+=20*(t-0.6);}
+  return {x:x,y:y};
+}
+function spawnStumps(){
+  for(var i=0;i<3;i++){state.stumpParts.push({x:PITCH_LEFT+10+i*4,y:PITCH_BOTTOM,vx:(i-1)*2,vy:-6-Math.random()*3,rot:0,vrot:(Math.random()-0.5)*0.3});}
+}
+function addPopup(text,color,x,y){state.popups.push({text:text,color:color,x:x||W/2,y:y||H/2-60,life:50});}
+function outcomeForShot(shot,dev,timing){
+  var good=timing==='good',late=timing==='late';
+  if(shot==='defend')return {runs:0,kind:'dot'};
+  if(shot==='drive'){
+    if(dev==='inswinger'||dev==='outswinger'){if(good)return {runs:Math.random()<0.5?4:6,kind:Math.random()<0.5?'four':'six'};if(late)return {runs:1,kind:'single'};return {runs:0,kind:'dot'};}
+    if(dev==='yorker'){if(good)return {runs:2,kind:'double'};return {runs:0,kind:'out',why:'BOWLED!'};}
+    if(dev==='bouncer'){return {runs:0,kind:'out',why:'CAUGHT!'};}
+    if(dev==='slower'){if(good)return {runs:4,kind:'four'};return {runs:1,kind:'single'};}
+  }
+  if(shot==='pull'){
+    if(dev==='bouncer'){if(good)return {runs:Math.random()<0.5?4:6,kind:Math.random()<0.5?'four':'six'};if(late)return {runs:2,kind:'double'};return {runs:0,kind:'dot'};}
+    if(dev==='inswinger'){return {runs:0,kind:'out',why:'LBW!'};}
+    if(dev==='yorker'){return {runs:0,kind:'dot'};}
+    if(dev==='outswinger'){if(good)return {runs:4,kind:'four'};return {runs:1,kind:'single'};}
+    if(dev==='slower'){return {runs:0,kind:'dot'};}
+  }
+  return {runs:0,kind:'dot'};
+}
+function handleShot(shot){
+  if(state.mode!=='playing'||!state.ballInPlay)return;
+  if(state.batsmanShot!=='')return;
+  state.batsmanShot=shot;state.shotAnim=20;
+  var t=state.ballT/state.ballDur;
+  var timing=t<0.7?'good':(t<0.95?'late':'miss');
+  if(timing==='miss'){state.outcome='DOT BALL';state.outcomeT=40;state.history.push('0');state.balls++;playClick();return;}
+  var res=outcomeForShot(shot,state.deliveryType,timing);
+  if(res.kind==='out'){
+    state.outcome=res.why||'OUT!';state.outcomeT=80;
+    state.wickets++;state.history.push('W');state.balls++;
+    playWicket();
+    if(res.why==='BOWLED!')spawnStumps();
+    if(res.why==='CAUGHT!'){state.caughtFielderIdx=Math.floor(Math.random()*fielders.length);}
+    if(state.wickets>=3){state.mode='gameover';if(state.score>state.best){state.best=state.score;state.high=true;}else{state.high=false;}}
+  }else if(res.kind==='four'){
+    state.outcome='FOUR!';state.outcomeT=60;
+    state.score+=4;state.history.push('4');state.balls++;
+    playFour();addPopup('FOUR! \u26A1','#22c55e');
+  }else if(res.kind==='six'){
+    state.outcome='SIX!';state.outcomeT=70;
+    state.score+=6;state.history.push('6');state.balls++;
+    playSix();addPopup('SIX! \uD83C\uDF89','#FFD700');
+  }else if(res.kind==='single'){
+    state.outcome='1 RUN';state.outcomeT=40;
+    state.score+=1;state.history.push('1');state.balls++;
+    playClick();
+  }else if(res.kind==='double'){
+    state.outcome='2 RUNS';state.outcomeT=40;
+    state.score+=2;state.history.push('2');state.balls++;
+    playClick();
+  }else{
+    state.outcome='DOT BALL';state.outcomeT=30;
+    state.history.push('0');state.balls++;
+    playClick();
+  }
+  state.ballInPlay=false;
+  if(state.balls%6===0&&state.mode==='playing'){
+    setTimeout(function(){state.flash='OVER COMPLETE';state.flashT=60;if(!state.ballInPlay)setTimeout(newBall,1500);},1500);
+  }else if(state.mode==='playing'){
+    setTimeout(newBall,1200);
+  }
+}
+function startGame(){ensureAudio();state.score=0;state.wickets=0;state.balls=0;state.history=[];state.ballInPlay=false;state.outcome='';state.outcomeT=0;state.flash='';state.flashT=0;state.popups=[];state.stumpParts=[];state.caughtFielderIdx=-1;state.mode='playing';newBall();}
+function update(){
+  if(state.mode==='playing'){
+    if(state.ballInPlay){
+      state.ballT++;
+      state.bowlerRunUp=Math.min(60,state.bowlerRunUp+1.5);
+      if(state.ballT>=state.ballDur){
+        if(state.batsmanShot===''){state.outcome='PLAY & MISS';state.outcomeT=40;state.history.push('0');state.balls++;state.ballInPlay=false;if(state.balls%6===0){setTimeout(function(){state.flash='OVER COMPLETE';state.flashT=60;setTimeout(newBall,1500);},1500);}else setTimeout(newBall,1200);}
+      }
+    }else{
+      if(state.bowlerRunUp>0)state.bowlerRunUp=Math.max(0,state.bowlerRunUp-1.5);
+    }
+    if(state.shotAnim>0)state.shotAnim--;
+  }
+  if(state.outcomeT>0)state.outcomeT--;
+  if(state.flashT>0)state.flashT--;
+  for(var i=state.popups.length-1;i>=0;i--){state.popups[i].y-=1.2;state.popups[i].life--;if(state.popups[i].life<=0)state.popups.splice(i,1);}
+  for(var k=state.stumpParts.length-1;k>=0;k--){var sp=state.stumpParts[k];sp.x+=sp.vx;sp.y+=sp.vy;sp.vy+=0.5;sp.rot+=sp.vrot;if(sp.y>700)state.stumpParts.splice(k,1);}
+  state.frame=(state.frame||0)+1;
+}
+function render(){
+  ctx.fillStyle='#0a0a0f';ctx.fillRect(0,0,W,H);
+  if(state.mode!=='title'&&state.mode!=='gameover'){
+    drawSky();drawCrowd();drawOutfield();drawPitch();drawFielders();
+    drawBowler();drawBatsman();
+    if(state.ballInPlay){var bp=getBallPos();state.ballX=bp.x;state.ballY=bp.y;drawBall(bp.x,bp.y);}
+    if(state.outcome!=='BOWLED!'&&state.stumpParts.length===0){drawStumps(PITCH_LEFT+10,PITCH_BOTTOM,1,0);drawStumps(PITCH_RIGHT-10,PITCH_BOTTOM,1,0);}else if(state.stumpParts.length>0){drawStumps(0,0,0,1);}
+    drawHUD();drawShotButtons();drawFlash();drawOutcomeBanner();
+    for(var p=0;p<state.popups.length;p++){var pp=state.popups[p];ctx.save();ctx.globalAlpha=pp.life/50;ctx.fillStyle=pp.color;ctx.shadowColor=pp.color;ctx.shadowBlur=12;ctx.font='bold 24px sans-serif';ctx.textAlign='center';ctx.fillText(pp.text,pp.x,pp.y);ctx.restore();}
+  }
+  if(state.mode==='title'){
+    drawSky();drawCrowd();drawOutfield();drawPitch();
+    drawBowler();drawBatsman();
+    drawTitleScreen();
+  }
+  if(state.mode==='gameover')drawGameOverScreen();
+}
+function loop(){update();render();requestAnimationFrame(loop);}loop();
+function handleTap(cx,cy){
+  if(state.mode==='title'){startGame();return;}
+  if(state.mode==='gameover'){startGame();return;}
+  if(state.mode==='playing'){
+    var btnY=H-58,btnH=44;
+    if(cy>=btnY&&cy<=btnY+btnH){
+      if(cx>=14&&cx<14+120)handleShot('drive');
+      else if(cx>=150&&cx<150+120)handleShot('pull');
+      else if(cx>=286&&cx<286+120)handleShot('defend');
+    }
+  }
+}
+canvas.addEventListener('click',function(e){ensureAudio();var r=canvas.getBoundingClientRect();var sx=canvas.width/r.width,sy=canvas.height/r.height;handleTap((e.clientX-r.left)*sx,(e.clientY-r.top)*sy);});
+canvas.addEventListener('touchstart',function(e){e.preventDefault();ensureAudio();if(e.touches.length>0){var t=e.touches[0];var r=canvas.getBoundingClientRect();var sx=canvas.width/r.width,sy=canvas.height/r.height;handleTap((t.clientX-r.left)*sx,(t.clientY-r.top)*sy);}},{passive:false});
+window.addEventListener('keydown',function(e){if(state.mode!=='playing')return;if(e.key==='1')handleShot('drive');else if(e.key==='2')handleShot('pull');else if(e.key==='3')handleShot('defend');else if(e.key===' '||e.key==='Enter'){e.preventDefault();ensureAudio();startGame();}});
+document.getElementById('shareBtn').addEventListener('click',function(){var text='I scored '+state.score+'/'+state.wickets+' vs Bumrah in Virat vs Bumrah on Zplay! https://zplay.ai';window.open('https://wa.me/?text='+encodeURIComponent(text));});
+document.getElementById('likeBtn').addEventListener('click',function(e){var b=e.currentTarget;b.style.background='rgba(255,153,51,0.3)';b.style.borderColor='rgba(255,153,51,0.6)';setTimeout(function(){b.style.background='';b.style.borderColor='';},400);});
+document.getElementById('remixBtn').addEventListener('click',function(){var colors=['#FF9933','#138808','#003580','#FFD700','#ef4444'];var c=colors[Math.floor(Math.random()*colors.length)];document.getElementById('wrap').style.boxShadow='0 0 80px '+c+', 0 20px 60px rgba(0,0,0,0.6)';});
+})();
+</script>
+</body>
+</html>

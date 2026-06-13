@@ -1,0 +1,202 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-nunito: 'Nunito', sans-serif;
+  --color-bg: #F7F8FA;
+  --color-card: #FFFFFF;
+  --color-border: #E2E8F0;
+  --color-purple: #6366F1;
+  --color-gold: #F59E0B;
+  --color-green: #22C55E;
+  --color-red: #EF4444;
+  --color-text: #1E293B;
+  --color-muted: #64748B;
+  --purple: #6366f1;
+  --purple-light: #818cf8;
+  --gold: #f59e0b;
+  --dark: #0a0a1e;
+  --dark-card: #13132b;
+  --background: 210 20% 97%;
+  --foreground: 215 28% 17%;
+  --card: 0 0% 100%;
+  --card-foreground: 215 28% 17%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 215 28% 17%;
+  --primary: 239 84% 67%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 240 4% 16%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 4% 16%;
+  --muted-foreground: 240 5% 65%;
+  --accent: 240 4% 16%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 4% 16%;
+  --input: 240 4% 16%;
+  --ring: 239 84% 67%;
+  --radius: 0.75rem;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-nunito), sans-serif;
+}
+
+.card-light {
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* KEEP .card-dark for game cards and feed thumbnails */
+/* Game card thumbnails must keep dark gradient */
+
+.spark-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #FFFBEB;
+  border: 1px solid #F59E0B;
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-weight: 700;
+  color: #92400E;
+  font-size: 13px;
+}
+
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #FFF7ED;
+  border: 1px solid #F97316;
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-weight: 700;
+  color: #9A3412;
+  font-size: 13px;
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+}
+
+.glow-purple-strong {
+  box-shadow: 0 0 40px rgba(99, 102, 241, 0.8);
+}
+
+.gradient-purple {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+.gradient-gold {
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+}
+
+.card-dark {
+  background: var(--dark-card);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 12px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a1e;
+}
+::-webkit-scrollbar-thumb {
+  background: #6366f1;
+  border-radius: 4px;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.4); }
+  50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.9); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.gradient-animated {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899, #6366f1);
+  background-size: 300% 300%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+.chip-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.chip-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes zap-breathe {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50% { transform: scale(1.03) translateY(-3px); }
+}
+@keyframes zap-bounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-12px) rotate(-5deg); }
+  75% { transform: translateY(-8px) rotate(5deg); }
+}
+@keyframes zap-celebrate {
+  0% { transform: scale(1) translateY(0); }
+  20% { transform: scale(1.15) translateY(-18px); }
+  40% { transform: scale(1.1) translateY(-10px); }
+  60% { transform: scale(1.15) translateY(-18px); }
+  80% { transform: scale(1.05) translateY(-5px); }
+  100% { transform: scale(1) translateY(0); }
+}
+@keyframes zap-sway {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(3deg); }
+  75% { transform: rotate(-3deg); }
+}
+@keyframes zap-lean {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  50% { transform: translateX(4px) rotate(2deg); }
+}
+
+.zap-breathe {
+  animation: zap-breathe 3s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+.zap-bounce {
+  animation: zap-bounce 0.6s ease-in-out infinite;
+}
+.zap-celebrate {
+  animation: zap-celebrate 0.8s ease-in-out infinite;
+}
+.zap-sway {
+  animation: zap-sway 2s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+.zap-lean {
+  animation: zap-lean 1s ease-in-out infinite;
+  transform-origin: center center;
+}
