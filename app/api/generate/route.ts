@@ -17,7 +17,8 @@ async function callDeepSeek(
   prompt: string,
   country: string,
   language: string,
-  maxTokens: number
+  maxTokens: number,
+  model: string = 'deepseek-chat'
 ): Promise<string> {
   const systemPrompt = MASTER_GAME_PROMPT
     .replace('{{PROMPT}}', prompt)
@@ -31,10 +32,10 @@ async function callDeepSeek(
       'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
     },
     body: JSON.stringify({
-      model: 'deepseek-chat',
+      model: model,
       messages: [{ role: 'user', content: systemPrompt }],
       max_tokens: maxTokens,
-      temperature: 0.7,
+      temperature: model === 'deepseek-reasoner' ? undefined : 0.7,
       stream: false
     })
   })
@@ -251,20 +252,304 @@ function repairKnownGeneratedBugs(html: string): string {
   return html
 }
 
+const GLOBAL_BOILERPLATE = `
+<script>
+// Polyfill roundRect
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+    if(typeof r==='number')r=[r,r,r,r];
+    var tl=r[0]||0,tr=(r[1]!==undefined?r[1]:r[0])||0,br=(r[2]!==undefined?r[2]:r[0])||0,bl=(r[3]!==undefined?r[3]:r[0])||0;
+    this.moveTo(x+tl,y);this.lineTo(x+w-tr,y);this.arcTo(x+w,y,x+w,y+tr,tr);
+    this.lineTo(x+w,y+h-br);this.arcTo(x+w,y+h,x+w-br,y+h,br);
+    this.lineTo(x+bl,y+h);this.arcTo(x,y+h,x,y+h-bl,bl);
+    this.lineTo(x,y+tl);this.arcTo(x,y,x+tl,y,tl);
+    this.closePath();return this;
+  };
+}
+
+// Zplay global variables (pre-defined for AI usage)
+var scoreFloat = 0;
+var score = 0;
+var best = 0;
+var combo = 0;
+var scoreFlash = 0;
+var speed = 3;
+var paused = false;
+var pauseStart = 0;
+var pauseAdSent = false;
+var frame = 0;
+var state = 'title';
+
+// Error Boundary recovery
+window.onerror = function(msg, src, line, col, err) {
+  document.body.innerHTML = '<div style="background:#0a0a1e;color:white;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif;text-align:center;padding:20px"><div style="font-size:56px">😅</div><h2 style="color:#6366f1;margin:16px 0 8px">Oops! Something glitched</h2><p style="color:#94a3b8;margin-bottom:24px;font-size:14px">Tap the button to try again</p><button onclick="location.reload()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;padding:14px 36px;border-radius:28px;font-size:16px;font-weight:bold;cursor:pointer;box-shadow:0 4px 20px rgba(99,102,241,0.4)">Retry ⚡</button></div>';
+  return true;
+};
+
+// Zplay event listeners & messaging
+window.zplayShare = function(score) {
+  window.parent.postMessage({type:'share',score:score},'*');
+};
+window.zplayScore = function(s) {
+  window._zplayScore = s;
+  window.parent.postMessage({type:'score',score:s},'*');
+};
+window.zplayGameOver = function(s) {
+  window.parent.postMessage({type:'gameover',score:s},'*');
+};
+window.zplayLike = function() { window.parent.postMessage({type:'like'},'*'); };
+window.zplayRemix = function() { window.parent.postMessage({type:'remix'},'*'); };
+
+function requestReplay() {
+  window.parent.postMessage({type:'requestReplay'}, '*');
+}
+
+window.addEventListener('message', function(evt) {
+  if (!evt.data || typeof evt.data !== 'object') return;
+  if (evt.data.type === 'doReplay') { resetGame(); }
+  if (evt.data.type === 'doResume') {
+    paused = false; pauseAdSent = false;
+    _startBg();
+  }
+});
+
+function resetGame() {
+  scoreFloat = 0; score = 0; combo = 0; scoreFlash = 0;
+  speed = 3; frame = 0; paused = false; state = 'playing';
+  if (typeof window.initGame === 'function') window.initGame();
+  else if (typeof window.restartGame === 'function') window.restartGame();
+  else if (typeof window.reset === 'function') window.reset();
+  else location.reload();
+}
+
+function endGame() {
+  paused = false; _stopBg();
+  if(score > best) best = score;
+  state = 'over';
+  window.zplayGameOver && window.zplayGameOver(score);
+  window.parent.postMessage({type:'earlyEnd',score:score},'*');
+}
+
+function addBonus(pts) {
+  scoreFloat += pts; score = Math.floor(scoreFloat);
+  scoreFlash = 10; combo++;
+}
+
+function updateScore() {
+  scoreFloat += speed * 0.12;
+  var ns = Math.floor(scoreFloat);
+  if (ns > score) { score = ns; scoreFlash = 6; }
+  if (frame % 300 === 0 && frame > 0) speed = Math.min(speed + 0.5, 10);
+  window.zplayScore && window.zplayScore(score);
+}
+
+function updateScoreBoard() {
+  scoreFloat += 0.36 + frame * 0.00008;
+  var ns = Math.floor(scoreFloat);
+  if (ns > score) { score = ns; scoreFlash = 6; }
+  window.zplayScore && window.zplayScore(score);
+}
+
+
+// Audio Engine setup
+var _AC=null,_MG=null,_BG=null,_vol=0.7,_muted=false,_bgType='sine',_bgFreq=80;
+function _iA(){
+  if(_AC)return;
+  _AC=new(window.AudioContext||window.webkitAudioContext)();
+  _MG=_AC.createGain();_MG.gain.value=_vol;_MG.connect(_AC.destination);
+}
+function _tone(f,t,dur,v){
+  if(!_AC||_muted)return;
+  var o=_AC.createOscillator(),g=_AC.createGain();
+  o.connect(g);g.connect(_MG);o.type=t||'sine';o.frequency.value=f;
+  g.gain.setValueAtTime(v||0.3,_AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,_AC.currentTime+dur);
+  o.start();o.stop(_AC.currentTime+dur);
+}
+function _noise(dur,v){
+  if(!_AC||_muted)return;
+  var b=_AC.createBuffer(1,_AC.sampleRate*dur,_AC.sampleRate);
+  var d=b.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  var s=_AC.createBufferSource(),g=_AC.createGain();
+  s.buffer=b;s.connect(g);g.connect(_MG);
+  g.gain.setValueAtTime(v||0.15,_AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,_AC.currentTime+dur);
+  s.start();
+}
+function _startBg(){
+  if(!_AC||_muted||_BG)return;
+  _BG=_AC.createOscillator();var g=_AC.createGain();
+  _BG.connect(g);g.connect(_MG);
+  _BG.type=_bgType||'sawtooth';_BG.frequency.value=_bgFreq||80;
+  g.gain.value=0.05;_BG.start();
+}
+function _stopBg(){if(_BG){try{_BG.stop();}catch(e){}}_BG=null;}
+function _sndVol(v){_vol=Math.max(0,Math.min(1,v));if(_MG)_MG.gain.value=_muted?0:_vol;}
+function _sndMute(){_muted=!_muted;if(_MG)_MG.gain.value=_muted?0:_vol;}
+
+// UI Drawing helpers (using canvas 2D fallback context lookup)
+function getGameCtx() {
+  return window.ctx || (typeof ctx !== 'undefined' ? ctx : null) || (document.querySelector('canvas') ? document.querySelector('canvas').getContext('2d') : null);
+}
+
+function drawPauseBtn() {
+  var c = getGameCtx();
+  if (!c) return;
+  c.save();
+  c.fillStyle='rgba(0,0,0,0.55)';
+  c.beginPath();c.roundRect(8,540,50,32,8);c.fill();
+  c.fillStyle='white';c.font='bold 14px sans-serif';c.textAlign='center';
+  c.fillText(paused?'▶':'⏸',33,561);
+  c.restore();
+}
+
+function drawPauseOverlay() {
+  var c = getGameCtx();
+  if (!c) return;
+  c.save();
+  c.fillStyle='rgba(5,5,20,0.93)';c.fillRect(0,0,390,580);
+  c.textAlign='center';
+  c.fillStyle='white';c.font='bold 30px sans-serif';c.fillText('PAUSED',195,180);
+  c.fillStyle='rgba(255,255,255,0.4)';c.font='13px sans-serif';
+  c.fillText('Score: '+score,195,210);
+  c.fillStyle='rgba(99,102,241,0.9)';
+  c.beginPath();c.roundRect(95,250,200,52,26);c.fill();
+  c.fillStyle='white';c.font='bold 17px sans-serif';c.fillText('▶  Resume',195,282);
+  c.fillStyle='rgba(239,68,68,0.75)';
+  c.beginPath();c.roundRect(95,318,200,48,24);c.fill();
+  c.fillStyle='white';c.font='bold 15px sans-serif';c.fillText('End Game',195,347);
+  c.restore();
+}
+
+function drawVolControl() {
+  var c = getGameCtx();
+  if (!c) return;
+  c.save();
+  c.fillStyle='rgba(0,0,0,0.5)';
+  c.beginPath();c.roundRect(340,540,42,32,8);c.fill();
+  c.fillStyle='white';c.font='17px sans-serif';c.textAlign='center';
+  c.fillText(_muted?'🔇':_vol>0.4?'🔊':'🔉',361,561);
+  c.restore();
+}
+
+function drawScoreDisplay() {
+  var c = getGameCtx();
+  if (!c) return;
+  if (scoreFlash > 0) scoreFlash--;
+  c.save();
+  c.fillStyle = 'rgba(0,0,0,0.55)';
+  c.beginPath(); c.roundRect(8,8,140,48,10); c.fill();
+  c.fillStyle = '#a5b4fc'; c.font = '11px sans-serif';
+  c.textAlign = 'left'; c.fillText('SCORE', 18, 26);
+  c.fillStyle = scoreFlash > 0 ? '#fbbf24' : 'white';
+  c.font = 'bold ' + (scoreFlash > 0 ? '28' : '22') + 'px sans-serif';
+  c.fillText(score, 18, 48);
+  c.fillStyle = 'rgba(0,0,0,0.55)';
+  c.beginPath(); c.roundRect(242,8,140,48,10); c.fill();
+  c.fillStyle = '#fbbf24'; c.font = '11px sans-serif';
+  c.textAlign = 'right'; c.fillText('BEST', 372, 26);
+  c.fillStyle = 'white'; c.font = 'bold 22px sans-serif';
+  c.fillText(best, 372, 48); c.restore();
+  
+  if (combo >= 3) {
+    var cc = combo >= 10 ? '#ef4444' : combo >= 6 ? '#a855f7' : '#f97316';
+    var ct = combo >= 10 ? 'ON FIRE! x5 !' : combo >= 6 ? 'COMBO x3' : 'COMBO x2';
+    c.save(); c.fillStyle = cc; c.shadowColor = cc; c.shadowBlur = 12;
+    c.font = 'bold 14px sans-serif'; c.textAlign = 'center';
+    c.fillText(ct, 195, 85); c.restore();
+  }
+}
+
+// 45-second pause monitor
+setInterval(function() {
+  if (paused && !pauseAdSent && (Date.now() - pauseStart) > 45000) {
+    pauseAdSent = true;
+    window.parent.postMessage({type:'pauseAdRequired'},'*');
+  }
+}, 1000);
+
+// Global Tap Interceptor (Capture phase)
+function checkHUDClicks(clientX, clientY) {
+  var canvas = document.querySelector('canvas');
+  if (!canvas) return false;
+  var rect = canvas.getBoundingClientRect();
+  var tx = (clientX - rect.left) * (390 / rect.width);
+  var ty = (clientY - rect.top) * (580 / rect.height);
+
+  // Pause button (8,540,50,32)
+  if (tx >= 8 && tx <= 58 && ty >= 540 && ty <= 572) {
+    _iA();
+    if (!paused) { 
+      paused = true; 
+      pauseStart = Date.now(); 
+      pauseAdSent = false; 
+      _stopBg(); 
+    } else { 
+      paused = false; 
+      _startBg(); 
+    }
+    return true;
+  }
+  
+  // Volume control (340,540,42,32)
+  if (tx >= 340 && tx <= 382 && ty >= 540 && ty <= 572) {
+    _iA();
+    _sndMute();
+    return true;
+  }
+  
+  // Resume/End Game overlay buttons
+  if (paused) {
+    // Resume zone (95,250,200,52)
+    if (tx >= 95 && tx <= 295 && ty >= 250 && ty <= 302) {
+      paused = false;
+      _startBg();
+      return true;
+    }
+    // End Game zone (95,318,200,48)
+    if (tx >= 95 && tx <= 295 && ty >= 318 && ty <= 366) {
+      endGame();
+      return true;
+    }
+    return true; // Lock input if paused
+  }
+  return false;
+}
+
+window.addEventListener('mousedown', function(e) {
+  _iA();
+  if (checkHUDClicks(e.clientX, e.clientY)) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+}, true);
+
+window.addEventListener('touchstart', function(e) {
+  _iA();
+  if (e.touches.length > 0) {
+    if (checkHUDClicks(e.touches[0].clientX, e.touches[0].clientY)) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  }
+}, true);
+</script>
+`;
+
 function postProcess(html: string, _gameId: string): string {
   html = repairKnownGeneratedBugs(html)
 
-  // Polyfill roundRect — inject as very first thing in <head> (case-insensitive)
-  const polyfill = `<script>if(!CanvasRenderingContext2D.prototype.roundRect){CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){if(typeof r==='number')r=[r,r,r,r];var tl=r[0]||0,tr=(r[1]!==undefined?r[1]:r[0])||0,br=(r[2]!==undefined?r[2]:r[0])||0,bl=(r[3]!==undefined?r[3]:r[0])||0;this.moveTo(x+tl,y);this.lineTo(x+w-tr,y);this.arcTo(x+w,y,x+w,y+tr,tr);this.lineTo(x+w,y+h-br);this.arcTo(x+w,y+h,x+w-br,y+h,br);this.lineTo(x+bl,y+h);this.arcTo(x,y+h,x,y+h-bl,bl);this.lineTo(x,y+tl);this.arcTo(x,y,x+tl,y,tl);this.closePath();return this;};};</script>`
-  html = injectAfter(html, '<head>', polyfill)
+  // Replace Date.now() % 9999 with a static seed to make the theme and colors permanent for this game!
+  const staticSeed = Math.floor(Math.random() * 9999)
+  html = html.replace(/Date\.now\(\)\s*%\s*9999/g, String(staticSeed))
+
+  // Inject global boilerplate inside <head> (which includes polyfill, error recovery, audio, pause systems, etc)
+  html = injectAfter(html, '<head>', GLOBAL_BOILERPLATE)
 
   // Inject viewport if missing
   if (!/viewport/i.test(html)) {
     html = injectAfter(html, '<head>', '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">')
   }
-
-  // Black-screen watchdog: canvas still dark after 2.5s → show retry overlay
-  const watchdog = `<script>;(function(){setTimeout(function(){try{var c=document.querySelector('canvas');if(!c)return;var x=c.getContext('2d');var w=c.width||390,h=c.height||580;var d=x.getImageData(w/2-60,h/2-60,120,120);var bright=0;for(var i=0;i<d.data.length;i+=4){if(d.data[i]>45||d.data[i+1]>45||d.data[i+2]>45)bright++;}if(bright<15){if(document.getElementById('_zw'))return;var div=document.createElement('div');div.id='_zw';div.style.cssText='position:fixed;inset:0;background:#0a0a1e;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif;text-align:center;padding:20px';div.innerHTML='<div style=\\'font-size:56px\\'>\\u{1F605}</div><h2 style=\\'color:white;margin:16px 0 8px\\'>Oops! Something glitched</h2><p style=\\'color:#94a3b8;margin-bottom:24px;font-size:14px\\'>Tap the button to try again</p><button onclick=\\'location.reload()\\' style=\\'background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;padding:14px 36px;border-radius:28px;font-size:16px;font-weight:bold;cursor:pointer\\'>Retry \u26a1</button>';document.body.appendChild(div);}}catch(e){}},2500);})();</script>`
 
   // Zplay watermark
   const watermark = `<div style="position:fixed;top:8px;right:10px;font-size:10px;color:rgba(255,255,255,0.4);font-family:sans-serif;z-index:9999;letter-spacing:2px;pointer-events:none">ZPLAY</div>`
@@ -274,9 +559,9 @@ function postProcess(html: string, _gameId: string): string {
 
   // Inject before </body>; fall back to before </html> if no </body>
   if (/<\/body>/i.test(html)) {
-    html = injectBefore(html, '</body>', watchdog + watermark + bottomBar)
+    html = injectBefore(html, '</body>', watermark + bottomBar)
   } else {
-    html = injectBefore(html, '</html>', watchdog + watermark + bottomBar)
+    html = injectBefore(html, '</html>', watermark + bottomBar)
   }
 
   return html
@@ -325,6 +610,7 @@ export async function POST(request: NextRequest) {
     }
 
     const maxTokens = TOKEN_LIMITS[userTier] ?? TOKEN_LIMITS.free
+    const model = (userTier === 'studio' || userTier === 'premium') ? 'deepseek-reasoner' : 'deepseek-chat'
 
     // Generate game with retry logic
     let html = ''
@@ -333,7 +619,7 @@ export async function POST(request: NextRequest) {
     while (attempts < 3) {
       attempts++
       try {
-        const raw = await callDeepSeek(prompt, country, language, maxTokens)
+        const raw = await callDeepSeek(prompt, country, language, maxTokens, model)
         console.log(`[generate] attempt ${attempts} raw length=${raw.length} starts="${raw.slice(0,80).replace(/\n/g,' ')}"`)
         if (validateGame(raw)) {
           html = postProcess(raw, 'temp')
@@ -365,7 +651,7 @@ export async function POST(request: NextRequest) {
         status: 'draft',
         country_origin: country,
         language: language,
-        ai_model_used: 'deepseek-chat'
+        ai_model_used: model
       })
       .select()
       .single()
@@ -383,6 +669,27 @@ export async function POST(request: NextRequest) {
       if (authUser) {
         const { awardSparks } = await import('@/lib/sparks')
         await awardSparks(authUser.id, 'GAME_GENERATED', game.id, 'Game created!')
+        
+        // Referral first game bonus check
+        const { data: referral } = await supabase
+          .from('referrals')
+          .select('id, referrer_id')
+          .eq('referred_id', authUser.id)
+          .eq('status', 'signup')
+          .maybeSingle()
+
+        if (referral) {
+          await awardSparks(
+            referral.referrer_id,
+            'REFERRAL_FIRST_GAME',
+            game.id,
+            'Your referral generated their first game!'
+          )
+          await supabase
+            .from('referrals')
+            .update({ status: 'first_game', sparks_awarded: 150 })
+            .eq('id', referral.id)
+        }
       }
     } catch {}
 
@@ -394,6 +701,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       gameId: game.id,
+      slug: slug,
       html: html,
       model: 'deepseek-chat'
     })

@@ -4,3 +4,5 @@
 *.tsbuildinfo
 ~$*
 client_secret_*
+.vercel
+.env*.local

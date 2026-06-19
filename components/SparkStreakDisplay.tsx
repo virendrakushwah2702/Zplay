@@ -5,10 +5,28 @@ export default function SparkStreakDisplay() {
   const [data, setData] = useState({ balance: 0, streak: 0 })
 
   useEffect(() => {
+    // Fetch current balance + streak
     fetch('/api/sparks/balance')
       .then(r => r.json())
       .then(d => setData({ balance: d.balance || 0, streak: d.streak || 0 }))
       .catch(() => {})
+
+    // Update streak once per day (guarded by localStorage)
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const lastStreakUpdate = localStorage.getItem('zplay_streak_date')
+      if (lastStreakUpdate !== today) {
+        fetch('/api/streak/update', { method: 'POST' })
+          .then(r => r.json())
+          .then(d => {
+            if (d.streak) {
+              setData(prev => ({ ...prev, streak: d.streak }))
+              localStorage.setItem('zplay_streak_date', today)
+            }
+          })
+          .catch(() => {})
+      }
+    } catch {}
   }, [])
 
   return (

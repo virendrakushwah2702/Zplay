@@ -11,20 +11,34 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { id } = await params
   try {
     const supabase = await createClient()
-    const { data: game } = await supabase
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id)
+    
+    let query = supabase
       .from('games')
-      .select('title, description, genre, slug, prompt')
-      .eq('id', id)
-      .eq('status', 'published')
-      .single()
+      .select('id, title, description, genre, slug, prompt, status, creator_id')
+    
+    if (isUuid) {
+      query = query.eq('id', id)
+    } else {
+      query = query.eq('slug', id)
+    }
+    
+    const { data: game } = await query.single()
 
     if (game) {
+      if (game.status !== 'published') {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.id !== game.creator_id) {
+          return { title: 'Private Game — Zplay' }
+        }
+      }
+
       const meta = generateGameMeta(
         game.title || '',
         game.genre || 'casual',
         game.prompt || game.title || ''
       )
-      const canonicalId = game.slug || id
+      const canonicalId = game.slug || game.id
       return {
         title: meta.title,
         description: meta.description,
@@ -61,17 +75,33 @@ export default async function GamePage({ params }: PageProps) {
 
   try {
     const supabase = await createClient()
-    const { data, error: err } = await supabase
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id)
+    
+    let query = supabase
       .from('games')
-      .select('id, title, description, html_content, genre, play_count, like_count, creator_id, country_origin, language, slug, users(name)')
-      .eq('id', id)
-      .eq('status', 'published')
-      .single()
+      .select('id, title, description, html_content, genre, play_count, like_count, creator_id, country_origin, language, slug, status, users(name)')
+    
+    if (isUuid) {
+      query = query.eq('id', id)
+    } else {
+      query = query.eq('slug', id)
+    }
 
-    if (err) {
+    const { data, error: err } = await query.single()
+
+    if (err || !data) {
       error = 'Game not found'
     } else {
-      game = data
+      if (data.status !== 'published') {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.id !== data.creator_id) {
+          error = 'Game not found'
+        } else {
+          game = data
+        }
+      } else {
+        game = data
+      }
     }
   } catch (err: any) {
     error = err.message || 'Failed to load game'

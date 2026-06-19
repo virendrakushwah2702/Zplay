@@ -6,6 +6,7 @@ import { X, Share2, Heart, Wand2 } from 'lucide-react'
 interface GameViewerProps {
   game: {
     id: string
+    slug?: string
     title: string
     html_content: string
     play_count?: number
@@ -49,6 +50,7 @@ export default function GameViewer({ game, isOpen, onClose, onRemix }: GameViewe
   useEffect(() => {
     if (!isOpen) return
     const handler = (event: MessageEvent) => {
+      if (event.source !== iframeRef.current?.contentWindow) return
       const data = event.data
       if (!data || typeof data !== 'object') return
       if (data.type === 'like') handleLike()
@@ -70,6 +72,22 @@ export default function GameViewer({ game, isOpen, onClose, onRemix }: GameViewe
       }
       if (data.type === 'earlyEnd') {
         setShowSharePrompt(true)
+      }
+      if (data.type === 'share') {
+        const scoreVal = data.score || 0
+        const canonicalId = game?.slug || game?.id
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://zplay.fun'
+        const url = `${origin}/game/${canonicalId}`
+        const text = `I scored ${scoreVal} on Zplay! Play free: ${url}`
+        if (navigator.share) {
+          navigator.share({
+            title: game?.title || 'Zplay Game',
+            text: text,
+            url: url
+          }).catch(() => {})
+        } else {
+          window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+        }
       }
     }
     window.addEventListener('message', handler)
@@ -98,8 +116,19 @@ export default function GameViewer({ game, isOpen, onClose, onRemix }: GameViewe
 
   const handleShare = () => {
     if (!game) return
-    const text = 'Play this game I found on Zplay! ' + game.title + ' https://zplay.fun/game/' + game.id + ' Make your own free game in 60 seconds!'
-    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank')
+    const canonicalId = game.slug || game.id
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://zplay.fun'
+    const url = `${origin}/game/${canonicalId}`
+    const text = `Play this game I found on Zplay! 🎮\n${game.title}\n${url}\nMake your own free game in 60 seconds!`
+    if (navigator.share) {
+      navigator.share({
+        title: game.title,
+        text: `Play this game I found on Zplay! 🎮`,
+        url: url
+      }).catch(() => {})
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+    }
   }
 
   const startReplayAd = () => {

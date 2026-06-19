@@ -33,8 +33,9 @@ export async function POST(request: NextRequest) {
       await supabase.from('creator_earnings').insert({
         creator_id: game.creator_id,
         game_id: gameId,
-        sparks_earned: 2,
-        source: 'game_played',
+        earning_type: 'game_played',
+        amount_sparks: 2,
+        description: `Play on: ${game.title || 'Untitled'}`,
       })
     } catch {}
 

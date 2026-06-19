@@ -8,6 +8,8 @@ import CelebrationOverlay from '@/components/CelebrationOverlay'
 import ZapMascot, { ZapMood } from '@/components/ZapMascot'
 import AuthButton from '@/components/AuthButton'
 import CreatorActivationModal from '@/components/CreatorActivationModal'
+import SparkStreakDisplay from '@/components/SparkStreakDisplay'
+import { createClient } from '@/lib/supabase/client'
 
 const EXAMPLE_CHIPS = [
   { emoji: '🏏', text: 'Cricket batting' },
@@ -45,6 +47,7 @@ interface Game {
   creator_id?: string
   country_origin?: string
   language?: string
+  slug?: string
   users?: { name?: string; avatar_url?: string } | null
 }
 
@@ -52,12 +55,12 @@ export default function HomePage() {
   const [prompt, setPrompt] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [loadingMsg, setLoadingMsg] = useState(0)
-  const [generatedGame, setGeneratedGame] = useState<{ id: string; html: string } | null>(null)
+  const [generatedGame, setGeneratedGame] = useState<{ id: string; slug?: string; html: string } | null>(null)
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [games, setGames] = useState<Game[]>([])
   const [error, setError] = useState<string | null>(null)
   const [activeGame, setActiveGame] = useState<Game | null>(null)
-  const [userId] = useState<string | undefined>(undefined)
+  const [userId, setUserId] = useState<string | undefined>(undefined)
   const [genreFilter, setGenreFilter] = useState<string>('all')
   const [publishTitle, setPublishTitle] = useState('')
   const [publishGenre, setPublishGenre] = useState('Other')
@@ -86,6 +89,30 @@ export default function HomePage() {
   const promptRef = useRef<HTMLTextAreaElement>(null)
   const generatedGameRef = useRef<HTMLIFrameElement>(null)
 
+  // Sync authenticated user ID into state so generation is attributed correctly
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserId(session?.user?.id)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // Capture referral code from URL and save to cookie
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const ref = params.get('ref')
+      if (ref) {
+        document.cookie = `zplay_ref=${ref}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`
+        toast.success('Joined via referral! ⚡')
+      }
+    }
+  }, [])
+
   // Handle remix messages from GameViewer — pre-fill the prompt input
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
@@ -102,6 +129,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!generatedGame) return
     const handler = (event: MessageEvent) => {
+      if (event.source !== generatedGameRef.current?.contentWindow) return
       const data = event.data
       if (!data || typeof data !== 'object') return
       if (data.type === 'requestReplay') {
@@ -115,6 +143,21 @@ export default function HomePage() {
       }
       if (data.type === 'pauseAdRequired') {
         startPauseAdHome()
+      }
+      if (data.type === 'share') {
+        const scoreVal = data.score || 0
+        const canonicalId = generatedGame.slug || generatedGame.id
+        const url = typeof window !== 'undefined' ? `${window.location.origin}/game/${canonicalId}` : ''
+        const text = `I scored ${scoreVal} on Zplay! Play free: ${url}`
+        if (navigator.share) {
+          navigator.share({
+            title: 'Zplay Game',
+            text: text,
+            url: url
+          }).catch(() => {})
+        } else {
+          window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+        }
       }
     }
     window.addEventListener('message', handler)
@@ -206,7 +249,7 @@ export default function HomePage() {
         setError(data.error || 'Generation failed')
         return
       }
-      setGeneratedGame({ id: data.gameId, html: data.html })
+      setGeneratedGame({ id: data.gameId, slug: data.slug, html: data.html })
       setZapMood('celebrating')
       setTimeout(() => setZapMood('idle'), 3000)
       setCelebration({
@@ -369,9 +412,8 @@ export default function HomePage() {
                 fontFamily:'var(--font-nunito)',
               }}>Zplay</span>
             </div>
-            <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
-              <span className="spark-badge">⚡ 0</span>
-              <span className="streak-badge">🔥 0</span>
+            <div style={{display:'flex', gap:'12px', alignItems:'center'}}>
+              <SparkStreakDisplay />
               <AuthButton />
             </div>
           </div>
@@ -695,6 +737,53 @@ export default function HomePage() {
               </div>
             </div>
 
+            {/* Share game link box */}
+            <div style={{
+              background: '#13132b',
+              border: '1px solid rgba(99,102,241,0.25)',
+              borderRadius: '12px',
+              padding: '12px',
+              marginTop: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '11px', color: '#a5b4fc', fontWeight: 'bold', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Game URL 🔗
+                </div>
+                <div style={{
+                  fontSize: '13px',
+                  color: 'white',
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                  fontWeight: 'bold',
+                }}>
+                  {typeof window !== 'undefined' ? `${window.location.origin}/game/${generatedGame.slug || generatedGame.id}` : ''}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/game/${generatedGame.slug || generatedGame.id}`;
+                  if (navigator.share) {
+                    navigator.share({
+                      title: 'My Zplay Game',
+                      text: 'Play my new AI-generated game on Zplay!',
+                      url: url
+                    }).catch(() => {});
+                  } else {
+                    navigator.clipboard.writeText(url);
+                    toast.success('Link copied! 🔗');
+                  }
+                }}
+                className="px-3 py-1.5 rounded-lg bg-[#6366f1] hover:bg-[#4f46e5] text-white font-bold text-xs transition-all whitespace-nowrap"
+              >
+                Copy Link
+              </button>
+            </div>
+
             <div className="mt-4 grid grid-cols-3 gap-2">
               <button
                 onClick={() => toast.success('Draft saved!')}
@@ -807,6 +896,7 @@ export default function HomePage() {
         <GameViewer
           game={{
             id: activeGame.id,
+            slug: activeGame.slug,
             title: activeGame.title,
             html_content: activeGame.html_content,
             play_count: activeGame.play_count,

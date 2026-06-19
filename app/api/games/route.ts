@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
         id, title, genre, play_count, like_count,
         created_at, published_at, trending_score,
         creator_id, country_origin, language, html_content,
+        slug,
         users(name, avatar_url)
       `)
       .eq('status', 'published')

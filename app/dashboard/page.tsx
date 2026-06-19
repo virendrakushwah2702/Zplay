@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getOrCreateReferralCode } from '@/lib/referral'
 import CreatorChallenge from '@/components/CreatorChallenge'
+import ShareGameButton from '@/components/ShareGameButton'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -229,20 +230,26 @@ export default async function DashboardPage() {
                 </span>
               </div>
             </div>
-            <a
-              href={`/game/${game.slug || game.id}`}
-              style={{
-                background: '#EEF2FF',
-                color: '#6366F1',
-                borderRadius: '8px',
-                padding: '6px 12px',
-                fontSize: '12px',
-                fontWeight: '700',
-                textDecoration: 'none',
-              }}
-            >
-              Play →
-            </a>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <ShareGameButton
+                gameUrl={`https://zplay.fun/game/${game.slug || game.id}`}
+                title={game.title || 'Zplay Game'}
+              />
+              <a
+                href={`/game/${game.slug || game.id}`}
+                style={{
+                  background: '#EEF2FF',
+                  color: '#6366F1',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  textDecoration: 'none',
+                }}
+              >
+                Play →
+              </a>
+            </div>
           </div>
         ))
       ) : (

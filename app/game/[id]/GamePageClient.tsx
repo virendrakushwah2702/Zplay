@@ -75,6 +75,7 @@ export default function GamePageClient({ game, error }: GamePageClientProps) {
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
+      if (event.source !== iframeRef.current?.contentWindow) return
       const data = event.data
       if (!data || typeof data !== 'object') return
       if (data.type === 'like') handleLike()
@@ -110,6 +111,21 @@ export default function GamePageClient({ game, error }: GamePageClientProps) {
       }
       if (data.type === 'earlyEnd') {
         setShowShare(true)
+      }
+      if (data.type === 'share') {
+        const scoreVal = data.score || 0
+        const canonicalId = game?.slug || game?.id
+        const url = typeof window !== 'undefined' ? `${window.location.origin}/game/${canonicalId}` : ''
+        const text = `I scored ${scoreVal} on Zplay! Play free: ${url}`
+        if (navigator.share) {
+          navigator.share({
+            title: game?.title || 'Zplay Game',
+            text: text,
+            url: url
+          }).catch(() => {})
+        } else {
+          window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+        }
       }
     }
     window.addEventListener('message', handler)
